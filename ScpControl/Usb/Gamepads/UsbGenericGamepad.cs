@@ -55,7 +55,7 @@ namespace ScpControl.Usb.Gamepads
 
         public static UsbDevice DeviceFactory(string devicePath)
         {
-            short vid, pid;
+            int vid, pid;
 
             GetHardwareId(devicePath, out vid, out pid);
 

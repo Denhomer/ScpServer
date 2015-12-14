@@ -210,6 +210,9 @@
     <Compile Include="Usb\Gamepads\UsbBlankGamepad.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Usb\Gamepads\UsbUltraStik360.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Usb\UsbHub.3rdPartyFixes.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -225,6 +228,7 @@
     <Compile Include="Utilities\OSVersionInfoClass.cs" />
     <Compile Include="Utilities\PhysicalAddressExtensions.cs" />
     <Compile Include="Utilities\PortableSettingsProvider.cs" />
+    <Compile Include="Utilities\SecretCombo.cs" />
     <Compile Include="Value Converters\EnumDescriptionConverter.cs" />
     <Compile Include="Value Converters\RadioBoolToIntConverter.cs" />
     <Compile Include="Wcf\IScpCommandService.cs" />

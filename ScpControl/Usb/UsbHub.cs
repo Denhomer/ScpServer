@@ -45,6 +45,8 @@ namespace ScpControl.Usb
 
                     if (current.Open(instance))
                     {
+                        if (!Apply3RdPartyWorkaroundsForDs4(ref current, instance)) continue;
+
                         if (LogArrival(current))
                         {
                             current.HidReportReceived += OnHidReportReceived;
@@ -247,6 +249,8 @@ namespace ScpControl.Usb
                             Log.DebugFormat("Device MAC address: {0}", arrived.DeviceAddress);
 
                             if (!Apply3RdPartyWorkaroundsForDs3(ref arrived, path: path)) break;
+
+                            if (!Apply3RdPartyWorkaroundsForDs4(ref arrived, path: path)) break;
 
                             if (LogArrival(arrived))
                             {
