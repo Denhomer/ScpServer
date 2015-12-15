@@ -64,6 +64,8 @@ namespace ScpControl.Usb.Gamepads
         SecretCombo changeToXInput = new SecretCombo(0x01, 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02); // 8 - 2
         SecretCombo mergeOn = new SecretCombo(0x01, 0x10, 0x20, 0x40, 0x80, 0x10, 0x20, 0x40, 0x80); // Bottom row twice
         SecretCombo mergeOff = new SecretCombo(0x01, 0x80, 0x40, 0x20, 0x10, 0x80, 0x40, 0x20, 0x10); // Bottom row twice backwards 
+        SecretCombo mergeOnSecondJoy = new SecretCombo(0x01, 0x08, 0x10, 0x20, 0x08, 0x10, 0x20); // Bottom row twice
+        SecretCombo mergeOffSecondJoy = new SecretCombo(0x01, 0x20, 0x10, 0x08, 0x20, 0x10, 0x08); // Bottom row twice backwards 
 
         static Object mergeLock = new Object();
         static byte mergeAxisX = 0x80;
@@ -73,7 +75,7 @@ namespace ScpControl.Usb.Gamepads
         static PhysicalAddress secondJoy = PhysicalAddress.Parse(String.Format("0200{0:X4}{1:X4}", 0xD209, 0x0502));
 
         ButtonMode buttonMode = ButtonMode.Arcade;
-        static MergeMode mergeMode = MergeMode.Single;
+        MergeMode mergeMode = MergeMode.Single;
 
         private enum ButtonMode
         {
@@ -217,6 +219,19 @@ namespace ScpControl.Usb.Gamepads
                     mergeMode = MergeMode.Merged;
                 }
                 if (mergeOff.checkButtons(report[2]))
+                {
+                    AudioPlayer.Instance.PlayCustomFile(SwitchingSingleSoundFile);
+                    mergeMode = MergeMode.Single;
+                }
+            }
+            if (DeviceAddress.Equals(secondJoy))
+            {
+                if (mergeOnSecondJoy.checkButtons(report[2]))
+                {
+                    AudioPlayer.Instance.PlayCustomFile(SwitchingMergedSoundFile);
+                    mergeMode = MergeMode.Merged;
+                }
+                if (mergeOffSecondJoy.checkButtons(report[2]))
                 {
                     AudioPlayer.Instance.PlayCustomFile(SwitchingSingleSoundFile);
                     mergeMode = MergeMode.Single;
