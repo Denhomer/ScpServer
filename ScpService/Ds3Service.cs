@@ -1,16 +1,20 @@
 ﻿using System;
-using System.Globalization;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Threading;
+using System.Threading.Tasks;
 using log4net;
 using ScpControl;
 using ScpControl.Bluetooth;
-using ScpControl.Exceptions;
+using ScpControl.Database;
+using ScpControl.Driver;
 using ScpControl.ScpCore;
 using ScpControl.Shared.Core;
+using ScpControl.Usb;
 using ScpControl.Usb.Ds3;
 using ScpControl.Usb.Ds4;
 using ScpControl.Usb.Gamepads;
@@ -19,6 +23,8 @@ namespace ScpService
 {
     public partial class Ds3Service : ServiceBase
     {
+        #region Private fields
+
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         private IntPtr _bthNotify = IntPtr.Zero;
         private ScpDevice.ServiceControlHandlerEx _mControlHandler;
@@ -27,6 +33,8 @@ namespace ScpService
         private IntPtr _mServiceHandle = IntPtr.Zero;
         private IntPtr _genericNotify = IntPtr.Zero;
         private readonly Timer _mTimer;
+
+        #endregion
 
         public Ds3Service()
         {
@@ -42,6 +50,8 @@ namespace ScpService
 
         protected override void OnStart(string[] args)
         {
+            var sw = Stopwatch.StartNew();
+
             Log.Info("Scarlet.Crush Productions DSx Service Started");
 
             Log.DebugFormat("++ {0} {1}", Assembly.GetExecutingAssembly().Location,
@@ -53,21 +63,33 @@ namespace ScpService
             _mControlHandler = ServiceControlHandler;
             _mServiceHandle = ScpDevice.RegisterServiceCtrlHandlerEx(ServiceName, _mControlHandler, IntPtr.Zero);
 
-#if FIXME // TODO: this is currently broken, replace
-
             var installTask = Task.Factory.StartNew(() =>
             {
-                if (GlobalConfiguration.Instance.ForceBluetoothDriverReinstallation)
-                    DriverInstaller.InstallBluetoothDongles(
-                        ScpDeviceCollection.Instance.Devices.Where(d => d.DeviceType == WdiUsbDeviceType.BluetoothHost));
+                using (var db = new ScpDb())
+                {
+#if FIXME
+                    var bthDevices = db.Engine.GetAllDbEntities<WdiDeviceInfo>(ScpDb.TableDevices)
+                        .Where(d => d.Value.DeviceType == WdiUsbDeviceType.BluetoothHost)
+                        .Select(d => d.Value);
 
-                if (GlobalConfiguration.Instance.ForceDs3DriverReinstallation)
-                    DriverInstaller.InstallDualShock3Controllers(
-                        ScpDeviceCollection.Instance.Devices.Where(d => d.DeviceType == WdiUsbDeviceType.DualShock3));
+                    if (GlobalConfiguration.Instance.ForceBluetoothDriverReinstallation)
+                        DriverInstaller.InstallBluetoothDongles(bthDevices);
 
-                if (GlobalConfiguration.Instance.ForceDs4DriverReinstallation)
-                    DriverInstaller.InstallDualShock4Controllers(
-                        ScpDeviceCollection.Instance.Devices.Where(d => d.DeviceType == WdiUsbDeviceType.DualSHock4));
+                    var ds3Devices = db.Engine.GetAllDbEntities<WdiDeviceInfo>(ScpDb.TableDevices)
+                        .Where(d => d.Value.DeviceType == WdiUsbDeviceType.DualShock3)
+                        .Select(d => d.Value);
+
+                    if (GlobalConfiguration.Instance.ForceDs3DriverReinstallation)
+                        DriverInstaller.InstallDualShock3Controllers(ds3Devices);
+
+                    var ds4Devices = db.Engine.GetAllDbEntities<WdiDeviceInfo>(ScpDb.TableDevices)
+                        .Where(d => d.Value.DeviceType == WdiUsbDeviceType.DualShock4)
+                        .Select(d => d.Value);
+
+                    if (GlobalConfiguration.Instance.ForceDs4DriverReinstallation)
+                        DriverInstaller.InstallDualShock4Controllers(ds4Devices);
+#endif
+                }
             });
 
             installTask.ContinueWith(task =>
@@ -76,24 +98,28 @@ namespace ScpService
                 Stop();
             }, TaskContinuationOptions.OnlyOnFaulted);
 
-#endif
+            Log.DebugFormat("Time spent 'till Root Hub start: {0}", sw.Elapsed);
 
-            try
+            var hubStartTask = Task.Factory.StartNew(() =>
             {
                 rootHub.Open();
                 rootHub.Start();
-            }
-            catch (RootHubAlreadyStartedException rhex)
+            });
+
+            hubStartTask.ContinueWith(task =>
             {
-                Log.FatalFormat("Couldn't start the root hub: {0}", rhex.Message);
+                Log.FatalFormat("Couldn't start the root hub: {0}", task.Exception);
                 Stop();
-                return;
-            }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+
+            Log.DebugFormat("Time spent 'till registering notifications: {0}", sw.Elapsed);
 
             ScpDevice.RegisterNotify(_mServiceHandle, UsbDs3.DeviceClassGuid, ref _ds3Notify, false);
             ScpDevice.RegisterNotify(_mServiceHandle, UsbDs4.DeviceClassGuid, ref _ds4Notify, false);
             ScpDevice.RegisterNotify(_mServiceHandle, BthDongle.DeviceClassGuid, ref _bthNotify, false);
             ScpDevice.RegisterNotify(_mServiceHandle, UsbGenericGamepad.DeviceClassGuid, ref _genericNotify, false);
+
+            Log.DebugFormat("Total Time spent in Service Start method: {0}", sw.Elapsed);
         }
 
         protected override void OnStop()

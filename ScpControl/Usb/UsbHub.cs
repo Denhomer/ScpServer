@@ -7,6 +7,7 @@ using ScpControl.Sound;
 using ScpControl.Usb.Ds3;
 using ScpControl.Usb.Ds4;
 using ScpControl.Usb.Gamepads;
+using ScpControl.Utilities;
 
 namespace ScpControl.Usb
 {
@@ -246,7 +247,7 @@ namespace ScpControl.Usb
 
                         if (arrived.Open(path))
                         {
-                            Log.DebugFormat("Device MAC address: {0}", arrived.DeviceAddress);
+                            Log.DebugFormat("Device MAC address: {0}", arrived.DeviceAddress.AsFriendlyName());
 
                             if (!Apply3RdPartyWorkaroundsForDs3(ref arrived, path: path)) break;
 
@@ -285,7 +286,7 @@ namespace ScpControl.Usb
                     {
                         foreach (var t in _devices.Where(t => t.State == DsState.Connected && path == t.Path))
                         {
-                            Log.InfoFormat("Device with MAC address {0} unplugged from Usb", t.DeviceAddress);
+                            Log.InfoFormat("Device with MAC address {0} unplugged from Usb", t.DeviceAddress.AsFriendlyName());
 
                             // play disconnect sound
                             if (GlobalConfiguration.Instance.IsUsbDisconnectSoundEnabled)

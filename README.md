@@ -1,6 +1,8 @@
 # ScpToolkit
 Windows Driver and XInput Wrapper for Sony DualShock 3/4 Controllers
 
+[![Join the chat at https://gitter.im/nefarius/ScpToolkit](https://badges.gitter.im/nefarius/ScpServer.svg)](https://gitter.im/nefarius/ScpServer?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## Credits
 ### Community
  * Major props to [original author Scarlet.Crush](http://forums.pcsx2.net/User-Scarlet-Crush) for developing this awesome toolkit!
@@ -29,13 +31,15 @@ Windows Driver and XInput Wrapper for Sony DualShock 3/4 Controllers
  * [AutoDependencyProperty.Fody](http://blog.angeloflogic.com/2014/12/no-more-dependencyproperty-with.html)
  * [LoadAssembliesOnStartup](https://github.com/Fody/LoadAssembliesOnStartup)
  * [Costura](https://github.com/Fody/Costura/)
+ * [DBreeze NoSql embedded object DBMS](https://dbreeze.codeplex.com/)
+ * [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json)
 
 ## Installation requirements
  * Microsoft Windows Vista/7/8/8.1/10 x86 or amd64
  * [Microsoft .NET Framework 4.5](https://www.microsoft.com/en-US/download/details.aspx?id=42642)
  * [Microsoft Visual C++ 2010 Redistributable Package](http://www.microsoft.com/en-US/download/details.aspx?id=5555)
  * [Microsoft Visual C++ 2013 Runtime](https://www.microsoft.com/en-US/download/details.aspx?id=40784)
- * [DirectX Runtime](https://www.microsoft.com/en-US/download/details.aspx?id=35)
+ * [DirectX Runtime](https://www.microsoft.com/en-us/download/details.aspx?DisplayLang=en&id=35)
  * [Xbox 360 Controller driver](https://www.microsoft.com/hardware/en-US/d/xbox-360-controller-for-windows)
   * Already integrated in Windows 8.x or greater
  * At least one supported Sony DualShock 3/4 controller (see **Compatible Controllers**)
@@ -43,7 +47,7 @@ Windows Driver and XInput Wrapper for Sony DualShock 3/4 Controllers
 
 ### Optional
  * A supported Bluetooth 2.0 (or higher) compatible USB dongle **with EDR** (**E**nhanced **D**ata **R**ate)
-  * See [**Compatible Bluetooth Devices**](https://github.com/nefarius/ScpServer/wiki/Compatible-Bluetooth-Devices)
+  * See [**Compatible Bluetooth Devices**](https://github.com/nefarius/ScpToolkit/wiki/Compatible-Bluetooth-Devices)
  * For DS4s to be useable the minimal supported Bluetooth version is **2.1**!
 
 ## Installation How-To
@@ -53,7 +57,7 @@ Windows Driver and XInput Wrapper for Sony DualShock 3/4 Controllers
 4. Wait for the Setup to finish.
   * If you're performing a fresh installation, run the Driver Installer afterwards.
   * If you're upgrading from an older installation you may skip the Driver Installer.
-5. When running the Driver Installer, chose your Bluetooth and controller devices you like to use with ScpToolkit.
+5. When running the Driver Installer, choose your Bluetooth and controller devices you like to use with ScpToolkit.
 6. The next step depends on your operating system:
  - Vista: check the Force Install option.
  - Win 7/8/8.1/10: leave it unchecked (or check if you're facing installation troubles, might help).
@@ -63,9 +67,7 @@ Windows Driver and XInput Wrapper for Sony DualShock 3/4 Controllers
 ![Install Screenshot](http://nefarius.at/wp-content/uploads/2013/12/31-10-_2015_13-27-55.png "Install Screenshot")
 
 ## To-Do list
- * Increase supported controller count from 4 to 8
  * Rewrite profile manager
- * Add Turbo option
  * Add support for fake PANHAI DS3 controllers
  * Implement gyroscope and accelerometer readout for DS3 and DS4
  * Implement touchpad readout for DS4

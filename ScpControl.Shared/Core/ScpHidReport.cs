@@ -131,6 +131,7 @@ namespace ScpControl.Shared.Core
 
         public uint PacketCounter
         {
+            get { return (uint) ((RawBytes[7] << 24) | (RawBytes[6] << 16) | (RawBytes[5] << 8) | (RawBytes[4] << 0)); }
             set
             {
                 RawBytes[4] = (byte) (value >> 0 & 0xFF);
@@ -220,7 +221,6 @@ namespace ScpControl.Shared.Core
                 {
                     case DsModel.DS3:
                         throw new NotImplementedException("DualShock 3 accelerometer readout not implemented yet.");
-                        break;
                     case DsModel.DS4:
                         return new DsAccelerometer
                         {
@@ -228,7 +228,6 @@ namespace ScpControl.Shared.Core
                             X = (short) -((RawBytes[24] << 8) | RawBytes[23]),
                             Z = (short) -((RawBytes[26] << 8) | RawBytes[25])
                         };
-                        break;
                 }
 
                 return new DsAccelerometer();
@@ -247,7 +246,6 @@ namespace ScpControl.Shared.Core
                 {
                     case DsModel.DS3:
                         throw new NotImplementedException("DualShock 3 gyroscope readout not implemented yet.");
-                        break;
                     case DsModel.DS4:
                         return new DsGyroscope
                         {
@@ -255,7 +253,6 @@ namespace ScpControl.Shared.Core
                             Yaw = (short) ((RawBytes[30] << 8) | RawBytes[29]),
                             Pitch = (short) ((RawBytes[32] << 8) | RawBytes[31])
                         };
-                        break;
                 }
 
                 return new DsGyroscope();
@@ -328,6 +325,9 @@ namespace ScpControl.Shared.Core
 
                     _currentDsButtonState.IsPressed = !button.Equals(Ds3Button.None) &&
                                                       (buttons & button.Offset) == button.Offset;
+                    _currentDsButtonState.Xbox360Button = _currentDsButtonState.IsPressed
+                        ? button.Xbox360Button
+                        : X360Button.None;
 
                     return _currentDsButtonState;
                 }
@@ -339,6 +339,9 @@ namespace ScpControl.Shared.Core
 
                     _currentDsButtonState.IsPressed = !button.Equals(Ds4Button.None) &&
                                                       (buttons & button.Offset) == button.Offset;
+                    _currentDsButtonState.Xbox360Button = _currentDsButtonState.IsPressed
+                        ? button.Xbox360Button
+                        : X360Button.None;
 
                     return _currentDsButtonState;
                 }

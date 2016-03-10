@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
+using WindowsInput;
 using WindowsInput.Native;
 using PropertyChanged;
 
@@ -47,6 +48,7 @@ namespace ScpControl.Shared.Core
     [KnownType(typeof (Ds3Button))]
     [KnownType(typeof (Ds4Button))]
     [KnownType(typeof (VirtualKeyCode))]
+    [KnownType(typeof (MouseButton))]
     [DisplayName("DualShock Profile")]
     public class DualShockProfile
     {
@@ -167,17 +169,6 @@ namespace ScpControl.Shared.Core
         [Description("The unique identifier of this profile.")]
         public Guid Id { get; private set; }
 
-        /// <summary>
-        ///     The name of the file this profile is stored in on the system.
-        /// </summary>
-        [ReadOnly(true)]
-        [DisplayName("Profile file name")]
-        [Description("The local file name of this profile.")]
-        public string FileName
-        {
-            get { return string.Format("{0}.xml", Id.ToString("D")); }
-        }
-
         [DataMember]
         [ReadOnly(true)]
         [DisplayName("Pad ID")]
@@ -198,6 +189,7 @@ namespace ScpControl.Shared.Core
         [DisplayName("Match profile on")]
         public DsMatch Match { get; set; }
 
+        [Browsable(false)]
         private IEnumerable<DsButtonProfile> Buttons
         {
             get
@@ -287,16 +279,23 @@ namespace ScpControl.Shared.Core
     [DataContract]
     public class DsButtonProfile
     {
+        private static readonly InputSimulator VirtualInput = new InputSimulator();
+        private const uint InputDelay = 100;
+
         #region Ctor
+
+        public DsButtonProfile()
+        {
+            OnCreated();
+        }
 
         /// <summary>
         ///     Creates a new button mapping profile.
         /// </summary>
         /// <param name="sources">A list of DualShock buttons which will be affected by this profile.</param>
-        public DsButtonProfile(params IDsButton[] sources)
+        public DsButtonProfile(params IDsButton[] sources) : this()
         {
             SourceButtons = sources;
-            OnCreated();
         }
 
         #endregion
@@ -341,6 +340,21 @@ namespace ScpControl.Shared.Core
                         report.Unset(button);
                         // set new button
                         report.Set(target);
+                    }
+                    break;
+                case CommandType.Keystrokes:
+                    foreach (var button in SourceButtons)
+                    {
+                        var target = (VirtualKeyCode) Enum.ToObject(typeof(VirtualKeyCode), MappingTarget.CommandTarget);
+
+                        if (report[button].IsPressed)
+                        {
+                            VirtualInput.Keyboard.KeyDown(target);
+                        }
+                        else
+                        {
+                            VirtualInput.Keyboard.KeyUp(target);
+                        }
                     }
                     break;
             }

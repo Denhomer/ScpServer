@@ -1,9 +1,13 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Net.NetworkInformation;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 using ScpControl.ScpCore;
 using ScpControl.Shared.Core;
 using ScpControl.Sound;
+using ScpControl.Utilities;
 
 namespace ScpControl.Bluetooth
 {
@@ -12,6 +16,17 @@ namespace ScpControl.Bluetooth
     /// </summary>
     public partial class BthDevice : BthConnection, IDsDevice
     {
+        #region Private fields
+
+        private readonly IObservable<long> _outputReportSchedule = Observable.Interval(TimeSpan.FromMilliseconds(10),
+            Scheduler.Default);
+
+        private IDisposable _outputReportTask;
+
+        private readonly TaskQueue _inputReportQueue = new TaskQueue();
+
+        #endregion
+
         #region Protected fields
 
         protected bool m_Blocked, m_IsIdle = true, m_IsDisconnect;
@@ -50,9 +65,22 @@ namespace ScpControl.Bluetooth
 
         #region Public methods
 
+        public ScpHidReport NewHidReport()
+        {
+            return new ScpHidReport
+            {
+                PadId = PadId,
+                PadState = State,
+                ConnectionType = Connection,
+                Model = Model,
+                PadMacAddress = DeviceAddress,
+                BatteryStatus = (byte) Battery
+            };
+        }
+
         public virtual bool Start()
         {
-            tmUpdate.Enabled = true;
+            _outputReportTask = _outputReportSchedule.Subscribe(tick => OnTimer());
 
             // play connection sound
             if (GlobalConfiguration.Instance.IsBluetoothConnectSoundEnabled)
@@ -77,24 +105,12 @@ namespace ScpControl.Bluetooth
             return BluetoothDevice.HCI_Disconnect(HciHandle) > 0;
         }
 
-        public ScpHidReport NewHidReport()
-        {
-            return new ScpHidReport
-            {
-                PadId = PadId,
-                PadState = State,
-                ConnectionType = Connection,
-                Model = Model,
-                PadMacAddress = DeviceAddress,
-                BatteryStatus = (byte) Battery
-            };
-        }
-
         public virtual bool Stop()
         {
             if (State == DsState.Connected)
             {
-                tmUpdate.Enabled = false;
+                if (_outputReportTask != null)
+                    _outputReportTask.Dispose();
 
                 State = DsState.Reserved;
                 m_Packet = 0;
@@ -145,12 +161,12 @@ namespace ScpControl.Bluetooth
 
                 case DsState.Reserved:
 
-                    return string.Format("Pad {0} : {1} {2} - Reserved", PadId, Model, DeviceAddress);
+                    return string.Format("Pad {0} : {1} {2} - Reserved", PadId, Model, DeviceAddress.AsFriendlyName());
 
                 case DsState.Connected:
 
                     return string.Format("Pad {0} : {1} {2} - {3} {4:X8} {5}", PadId, Model,
-                        DeviceAddress,
+                        DeviceAddress.AsFriendlyName(),
                         Connection,
                         m_Packet,
                         Battery
@@ -174,9 +190,21 @@ namespace ScpControl.Bluetooth
 
         public event EventHandler<ScpHidReport> HidReportReceived;
 
-        protected virtual void OnHidReportReceived(ScpHidReport report)
+        protected void OnHidReportReceived(ScpHidReport report)
         {
-            if (HidReportReceived != null) HidReportReceived(this, report);
+            if (GlobalConfiguration.Instance.UseAsyncHidReportProcessing)
+            {
+                _inputReportQueue.Enqueue(() => Task.Run(() =>
+                {
+                    if (HidReportReceived != null)
+                        HidReportReceived.Invoke(this, report);
+                }));
+            }
+            else
+            {
+                if (HidReportReceived != null)
+                    HidReportReceived.Invoke(this, report);
+            }
         }
 
         #endregion
@@ -187,7 +215,7 @@ namespace ScpControl.Bluetooth
         {
         }
 
-        protected virtual void On_Timer(object sender, EventArgs e)
+        protected virtual void OnTimer()
         {
             if (State != DsState.Connected) return;
 

@@ -90,11 +90,6 @@ namespace ScpControl.ScpCore
         /// </summary>
         public static string AppDirectory { get { return WorkingDirectory; } }
 
-        /// <summary>
-        ///     Gets the local path to the XML-based profiles.
-        /// </summary>
-        public static string ProfilesPath { get { return Path.Combine(AppDirectory, "Profiles"); } }
-
         public bool FlipLX
         {
             get { return Settings.Default.FlipAxisLx; }
@@ -177,6 +172,12 @@ namespace ScpControl.ScpCore
             set { Settings.Default.DisableSecureSimplePairing = value; }
         }
 
+        public bool UseAsyncHidReportProcessing
+        {
+            get { return Settings.Default.UseAsyncHidReportProcessing; }
+            set { Settings.Default.UseAsyncHidReportProcessing = value; }
+        }
+
         public byte Brightness
         {
             get { return Settings.Default.Ds4LightBarBrightness; }
@@ -210,6 +211,14 @@ namespace ScpControl.ScpCore
             }
         }
 
+        public bool ProfilesEnabled
+        {
+            get { return Settings.Default.ProfilesEnabled; }
+            set { Settings.Default.ProfilesEnabled = value; }
+        }
+
+        #region Service settings
+
         public bool ForceBluetoothDriverReinstallation
         {
             get { return Settings.Default.ForceBluetoothDriverReinstallation; }
@@ -228,6 +237,26 @@ namespace ScpControl.ScpCore
             set { Settings.Default.ForceDs4DriverReinstallation = value; }
         }
 
+        public bool IsVBusDisabled
+        {
+            get { return Settings.Default.IsVBusDisabled; }
+            set { Settings.Default.IsVBusDisabled = value; }
+        }
+
+        public bool AlwaysDisconnectVirtualBusDevice
+        {
+            get { return Settings.Default.AlwaysDisconnectVirtualBusDevice; }
+            set { Settings.Default.AlwaysDisconnectVirtualBusDevice = value; }
+        }
+
+        public bool SkipOccupiedSlots
+        {
+            get { return Settings.Default.SkipOccupiedSlots; }
+            set { Settings.Default.SkipOccupiedSlots = value; }
+        }
+
+        #endregion
+        
         #region Sound settings
 
         public bool SoundsEnabled
@@ -369,6 +398,8 @@ namespace ScpControl.ScpCore
 
         #endregion
 
+        #region PCSX2 settings
+
         public string Pcsx2RootPath
         {
             get { return Settings.Default.Pcsx2RootPath; }
@@ -380,6 +411,8 @@ namespace ScpControl.ScpCore
             get { return Settings.Default.IsPressureSensitivityModEnabled; }
             set { Settings.Default.IsPressureSensitivityModEnabled = (value == true); }
         }
+
+        #endregion
 
         #endregion
     }

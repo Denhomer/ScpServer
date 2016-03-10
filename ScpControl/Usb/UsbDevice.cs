@@ -1,6 +1,8 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Net.NetworkInformation;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HidSharp.ReportDescriptors.Parser;
@@ -16,32 +18,20 @@ namespace ScpControl.Usb
     /// </summary>
     public partial class UsbDevice : ScpDevice, IDsDevice
     {
+        #region Private fields
+
+        private readonly IObservable<long> _outputReportSchedule = Observable.Interval(TimeSpan.FromMilliseconds(10),
+            Scheduler.Default);
+
         private CancellationTokenSource _hidCancellationTokenSource = new CancellationTokenSource();
 
-        public override string ToString()
-        {
-            switch (State)
-            {
-                case DsState.Disconnected:
+        private IDisposable _outputReportTask;
 
-                    return string.Format("Pad {0} : Disconnected", PadId);
+        private readonly TaskQueue _inputReportQueue = new TaskQueue();
 
-                case DsState.Reserved:
+        #endregion
 
-                    return string.Format("Pad {0} : {1} {2} - Reserved", PadId, Model, DeviceAddress);
-
-                case DsState.Connected:
-
-                    return string.Format("Pad {0} : {1} {2} - {3} {4:X8} {5}", PadId, Model,
-                        DeviceAddress,
-                        Connection,
-                        PacketCounter,
-                        Battery
-                        );
-            }
-
-            throw new Exception();
-        }
+        #region Private methods
 
         /// <summary>
         ///     Worker thread polling for incoming Usb interrupts.
@@ -49,7 +39,7 @@ namespace ScpControl.Usb
         /// <param name="o">Task cancellation token.</param>
         private void HidWorker(object o)
         {
-            var token = (CancellationToken)o;
+            var token = (CancellationToken) o;
             var transfered = 0;
             var buffer = new byte[64];
 
@@ -73,10 +63,7 @@ namespace ScpControl.Usb
             Log.Debug("-- Usb Device : HID_Worker_Thread Exiting");
         }
 
-        private void On_Timer(object sender, EventArgs e)
-        {
-            Process(DateTime.Now);
-        }
+        #endregion
 
         #region Protected fields
 
@@ -95,9 +82,21 @@ namespace ScpControl.Usb
 
         public event EventHandler<ScpHidReport> HidReportReceived;
 
-        protected virtual void OnHidReportReceived(ScpHidReport report)
+        protected void OnHidReportReceived(ScpHidReport report)
         {
-            if (HidReportReceived != null) HidReportReceived(this, report);
+            if (GlobalConfiguration.Instance.UseAsyncHidReportProcessing)
+            {
+                _inputReportQueue.Enqueue(() => Task.Run(() =>
+                {
+                    if (HidReportReceived != null)
+                        HidReportReceived.Invoke(this, report);
+                }));
+            }
+            else
+            {
+                if (HidReportReceived != null)
+                    HidReportReceived.Invoke(this, report);
+            }
         }
 
         #endregion
@@ -159,7 +158,24 @@ namespace ScpControl.Usb
 
         #endregion
 
-        #region Actions
+        #region Public methods
+
+        /// <summary>
+        ///     Crafts a new <see cref="ScpHidReport"/> with current devices meta data.
+        /// </summary>
+        /// <returns>The new HID <see cref="ScpHidReport"/>.</returns>
+        public ScpHidReport NewHidReport()
+        {
+            return new ScpHidReport
+            {
+                PadId = PadId,
+                PadState = State,
+                ConnectionType = Connection,
+                Model = Model,
+                PadMacAddress = DeviceAddress,
+                BatteryStatus = (byte) Battery
+            };
+        }
 
         public override bool Start()
         {
@@ -170,10 +186,11 @@ namespace ScpControl.Usb
 
             Task.Factory.StartNew(HidWorker, _hidCancellationTokenSource.Token);
 
-            tmUpdate.Enabled = true;
+            _outputReportTask = _outputReportSchedule.Subscribe(tick => Process(DateTime.Now));
 
             Rumble(0, 0);
-            Log.DebugFormat("-- Started Device Instance [{0}] Local [{1}] Remote [{2}]", m_Instance, DeviceAddress, HostAddress);
+            Log.DebugFormat("-- Started Device Instance [{0}] Local [{1}] Remote [{2}]", m_Instance,
+                DeviceAddress.AsFriendlyName(), HostAddress.AsFriendlyName());
 
             // connection sound
             if (GlobalConfiguration.Instance.IsUsbConnectSoundEnabled)
@@ -215,26 +232,13 @@ namespace ScpControl.Usb
             return true;
         }
 
-        protected virtual void Process(DateTime now)
-        {
-        }
-
-        protected virtual void ParseHidReport(byte[] report)
-        {
-        }
-
-        protected virtual bool Shutdown()
-        {
-            Stop();
-
-            return RestartDevice(m_Instance);
-        }
-
         public override bool Stop()
         {
             if (IsActive)
             {
-                tmUpdate.Enabled = false;
+                if (_outputReportTask != null)
+                    _outputReportTask.Dispose();
+
                 State = DsState.Reserved;
 
                 _hidCancellationTokenSource.Cancel();
@@ -252,7 +256,9 @@ namespace ScpControl.Usb
             {
                 base.Close();
 
-                tmUpdate.Enabled = false;
+                if (_outputReportTask != null)
+                    _outputReportTask.Dispose();
+
                 State = DsState.Disconnected;
 
                 OnHidReportReceived(NewHidReport());
@@ -261,19 +267,50 @@ namespace ScpControl.Usb
             return !IsActive;
         }
 
+        public override string ToString()
+        {
+            switch (State)
+            {
+                case DsState.Disconnected:
+
+                    return string.Format("Pad {0} : Disconnected", PadId);
+
+                case DsState.Reserved:
+
+                    return string.Format("Pad {0} : {1} {2} - Reserved", PadId, Model, DeviceAddress.AsFriendlyName());
+
+                case DsState.Connected:
+
+                    return string.Format("Pad {0} : {1} {2} - {3} {4:X8} {5}", PadId, Model,
+                        DeviceAddress.AsFriendlyName(),
+                        Connection,
+                        PacketCounter,
+                        Battery
+                        );
+            }
+
+            throw new Exception();
+        }
+
         #endregion
 
-        public ScpHidReport NewHidReport()
+        #region Protected methods
+
+        protected virtual void Process(DateTime now)
         {
-            return new ScpHidReport()
-            {
-                PadId = PadId,
-                PadState = State,
-                ConnectionType = Connection,
-                Model = Model,
-                PadMacAddress = DeviceAddress,
-                BatteryStatus = (byte)Battery
-            };
         }
+
+        protected virtual void ParseHidReport(byte[] report)
+        {
+        }
+
+        protected virtual bool Shutdown()
+        {
+            Stop();
+
+            return RestartDevice(m_Instance);
+        }
+
+        #endregion
     }
 }
