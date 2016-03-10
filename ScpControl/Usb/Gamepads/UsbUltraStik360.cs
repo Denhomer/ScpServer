@@ -193,6 +193,8 @@ namespace ScpControl.Usb.Gamepads
                             inputReport.Set(Ds4Button.Share, IsBitSet(mergeButtons, 0));
                             inputReport.Set(Ds4Button.Ps, IsBitSet(mergeButtons, 1));
                             inputReport.Set(Ds4Button.Options, IsBitSet(mergeButtons, 2));
+                            inputReport.Set(Ds4Button.L3, IsBitSet(mergeButtons, 3));
+                            inputReport.Set(Ds4Button.R3, IsBitSet(mergeButtons, 4));
 
                             inputReport.Set(Ds4Axis.Rx, mergeAxisX);
                             inputReport.Set(Ds4Axis.Ry, mergeAxisY);
